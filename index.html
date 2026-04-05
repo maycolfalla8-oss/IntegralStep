@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IntegralStep v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #070710;
+  --surface: #0e0e1c;
+  --surface2: #14142a;
+  --border: #1e1e3a;
+  --border2: #2a2a50;
+  --accent: #7c4dff;
+  --accent-glow: rgba(124,77,255,0.35);
+  --cyan: #00e5ff;
+  --cyan-glow: rgba(0,229,255,0.25);
+  --pink: #ff4081;
+  --green: #00ffaa;
+  --gold: #ffd700;
+  --text: #eeeef8;
+  --text2: #a0a0c8;
+  --muted: #50507a;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Space Mono', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ══════════════ BACKGROUND ══════════════ */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(124,77,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,77,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridScroll 25s linear infinite;
+}
+@keyframes gridScroll { to { background-position: 0 48px; } }
+
+.orb { position:fixed; border-radius:50%; filter:blur(100px); opacity:0.12; pointer-events:none; animation: orbFloat 10s ease-in-out infinite; }
+.orb-1 { width:500px;height:500px;background:var(--accent);top:-150px;right:-100px; }
+.orb-2 { width:400px;height:400px;background:var(--cyan);bottom:-100px;left:-80px;animation-delay:-5s; }
+.orb-3 { width:300px;height:300px;background:var(--pink);top:50%;left:50%;animation-delay:-8s; }
+@keyframes orbFloat {
+  0%,100% { transform:translateY(0) scale(1); }
+  50% { transform:translateY(-40px) scale(1.06); }
+}
+
+/* ══════════════ LAYOUT ══════════════ */
+.wrapper {
+  position: relative; z-index: 1;
+  display: flex; min-height: 100vh;
+}
+
+/* ══════════════ SIDEBAR ══════════════ */
+.sidebar {
+  width: 220px; min-height: 100vh;
+  background: rgba(14,14,28,0.95);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 28px 0;
+  position: sticky; top: 0; height: 100vh;
+  backdrop-filter: blur(20px);
+  flex-shrink: 0;
+}
+
+.brand {
+  padding: 0 24px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 900;
+  letter-spacing: -0.5px;
+}
+.brand-name span { color: var(--accent); }
+.brand-sub {
+  font-size: 9px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--muted);
+  margin-top: 2px;
+}
+
+.nav-section {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+.nav-section-label {
+  font-size: 8px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 12px 8px;
+}
+.nav-btn {
+  width: 100%; padding: 10px 14px;
+  background: none; border: none;
+  color: var(--text2); font-family: var(--font-ui);
+  font-size: 11px; letter-spacing: 1px;
+  text-align: left; cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 10px;
+}
+.nav-btn:hover { background: rgba(124,77,255,0.1); color: var(--text); }
+.nav-btn.active {
+  background: rgba(124,77,255,0.15);
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+}
+.nav-btn .icon { font-size: 14px; width: 18px; text-align:center; }
+
+/* ══════════════ TOOLTIP ══════════════ */
+.nav-btn { position: relative; }
+.nav-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%; transform: translateY(-50%) scale(0.88);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 11px; letter-spacing: 0.5px;
+  white-space: nowrap;
+  padding: 7px 13px;
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 999;
+}
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%; transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: var(--border2);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  z-index: 999;
+}
+.nav-btn:hover::after { opacity: 1; transform: translateY(-50%) scale(1); }
+.nav-btn:hover::before { opacity: 1; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 20px 24px 0;
+  border-top: 1px solid var(--border);
+}
+.version-tag {
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase;
+}
+
+/* ══════════════ MAIN CONTENT ══════════════ */
+.main {
+  flex: 1;
+  padding: 40px 48px;
+  max-width: 820px;
+  overflow-y: auto;
+}
+
+/* Page visibility */
+.page { display: none; }
+.page.active { display: block; animation: fadeUp 0.35s ease; }
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* ══════════════ PAGE HEADER ══════════════ */
+.page-header { margin-bottom: 36px; }
+.page-title {
+  font-family: var(--font-display);
+  font-size: 30px; font-weight: 900;
+  letter-spacing: -1px; line-height: 1;
+}
+.page-title .hl { color: var(--accent); }
+.page-desc {
+  color: var(--text2); font-size: 12px;
+  margin-top: 8px; line-height: 1.7;
+}
+
+/* ══════════════ CARDS ══════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.card::after {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.6;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title::before {
+  content:''; width:3px; height:14px;
+  background: var(--accent); border-radius:2px;
+}
+
+/* ══════════════ FORMULA STRIP ══════════════ */
+.formula-strip {
+  background: rgba(124,77,255,0.07);
+  border: 1px solid rgba(124,77,255,0.2);
+  border-radius: 10px; padding: 14px 22px;
+  text-align: center; font-family: var(--font-mono);
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 24px; letter-spacing: 0.5px;
+}
+.formula-strip .hl { color: var(--cyan); }
+.formula-strip .hl2 { color: var(--accent); }
+
+/* ══════════════ INPUTS ══════════════ */
+.inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px; margin-bottom: 22px;
+}
+.inputs-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.inputs-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.inputs-grid-1 { grid-template-columns: 1fr; }
+
+.field { display:flex; flex-direction:column; gap:7px; }
+.field label {
+  font-size: 9px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--muted);
+}
+.field label em { color: var(--cyan); font-style: italic; font-size: 12px; }
+
+input[type="number"], input[type="text"] {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px 16px;
+  color: var(--text); font-family: var(--font-mono);
+  font-size: 16px; font-weight: 500;
+  width: 100%; outline: none;
+  transition: all 0.2s; text-align: center;
+}
+input:focus {
+  border-color: var(--accent);
+  background: rgba(124,77,255,0.07);
+  box-shadow: 0 0 0 3px rgba(124,77,255,0.12);
+}
+input::placeholder { color: var(--muted); font-size: 12px; }
+input::-webkit-inner-spin-button { opacity: 0.3; }
+
+/* ══════════════ PREVIEW ══════════════ */
+.preview {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid transparent;
+  border-radius: 10px; padding: 14px 22px;
+  text-align: center; font-family: var(--font-mono);
+  font-size: 16px; color: var(--muted);
+  margin-bottom: 22px;
+  transition: all 0.3s; min-height: 50px;
+  display: flex; align-items: center; justify-content: center;
+}
+.preview.live { color: var(--text); border-color: rgba(124,77,255,0.2); }
+.int-sign { font-size: 26px; color: var(--accent); margin-right: 3px; }
+
+/* ══════════════ BUTTONS ══════════════ */
+.btn-primary {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, #7c4dff, #b24dff);
+  border: none; border-radius: 10px;
+  color: white; font-family: var(--font-ui);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+  margin-bottom: 16px;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--accent-glow); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: none; border: 1px solid var(--border2);
+  border-radius: 8px; padding: 9px 20px;
+  color: var(--muted); font-family: var(--font-ui);
+  font-size: 10px; letter-spacing: 2px;
+  cursor: pointer; transition: all 0.2s; width: 100%;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+/* ══════════════ RESULT BOX ══════════════ */
+.result-box {
+  display: none; border-radius: 12px;
+  padding: 24px; text-align: center;
+  margin-top: 14px; animation: pop 0.4s ease;
+}
+@keyframes pop {
+  from { opacity:0; transform:scale(0.97) translateY(8px); }
+  to { opacity:1; transform:scale(1) translateY(0); }
+}
+.result-box.show { display: block; }
+.result-box.ok {
+  background: rgba(0,229,255,0.05);
+  border: 1px solid rgba(0,229,255,0.2);
+}
+.result-box.err {
+  background: rgba(255,64,129,0.05);
+  border: 1px solid rgba(255,64,129,0.2);
+}
+.result-box.warn {
+  background: rgba(255,215,0,0.05);
+  border: 1px solid rgba(255,215,0,0.2);
+}
+.result-label {
+  font-size: 9px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+}
+.result-main {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 700;
+  color: var(--cyan); word-break: break-all;
+  margin-bottom: 6px;
+}
+.result-box.err .result-main { color: var(--pink); font-size: 16px; }
+.result-box.warn .result-main { color: var(--gold); font-size: 20px; }
+.result-sub { font-size: 11px; color: var(--muted); font-style: italic; }
+
+/* ══════════════ STEPS ══════════════ */
+.steps {
+  display: none; margin-top: 14px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 18px 22px;
+  font-size: 12px; line-height: 2.2;
+}
+.steps.show { display: block; }
+.step { display: flex; align-items: flex-start; gap: 12px; }
+.step-num {
+  min-width: 22px; height: 22px;
+  background: rgba(124,77,255,0.2);
+  border: 1px solid rgba(124,77,255,0.4);
+  border-radius: 50%; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 9px; color: var(--accent);
+  font-weight: 700; margin-top: 4px; flex-shrink: 0;
+}
+.step-text { color: var(--text2); }
+.step-val { color: var(--green); font-weight: 700; font-family: var(--font-mono); }
+
+/* ══════════════ WARNING ══════════════ */
+.warning {
+  display: none; gap: 10px;
+  background: rgba(255,215,0,0.06);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 8px; padding: 11px 16px;
+  font-size: 11px; color: var(--gold);
+  margin-top: 12px; align-items: flex-start;
+}
+.warning.show { display: flex; }
+
+/* ══════════════ FORMULA REFERENCE ══════════════ */
+.formula-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.formula-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px;
+  position: relative; overflow: hidden;
+  transition: all 0.2s;
+}
+.formula-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.formula-card::before {
+  content:''; position:absolute;
+  top:0; left:0; width:3px; height:100%;
+  border-radius: 3px 0 0 3px;
+}
+.formula-card.int::before { background: var(--accent); }
+.formula-card.der::before { background: var(--cyan); }
+.formula-card.special::before { background: var(--gold); }
+.formula-card.method::before { background: var(--green); }
+
+.fc-tag {
+  font-size: 8px; letter-spacing: 3px;
+  text-transform: uppercase; margin-bottom: 8px;
+  font-weight: 700;
+}
+.formula-card.int .fc-tag { color: var(--accent); }
+.formula-card.der .fc-tag { color: var(--cyan); }
+.formula-card.special .fc-tag { color: var(--gold); }
+.formula-card.method .fc-tag { color: var(--green); }
+
+.fc-formula {
+  font-family: var(--font-mono);
+  font-size: 13px; color: var(--text);
+  margin-bottom: 6px; line-height: 1.5;
+}
+.fc-desc {
+  font-size: 10px; color: var(--muted);
+  line-height: 1.6;
+}
+
+/* METHOD CARDS */
+.method-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.method-title {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 800;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.method-badge {
+  font-size: 9px; letter-spacing: 2px;
+  padding: 3px 10px; border-radius: 20px;
+  font-weight: 700; font-family: var(--font-ui);
+  text-transform: uppercase;
+}
+.badge-green { background: rgba(0,255,170,0.1); border: 1px solid rgba(0,255,170,0.3); color: var(--green); }
+.badge-cyan { background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); color: var(--cyan); }
+.badge-purple { background: rgba(124,77,255,0.1); border: 1px solid rgba(124,77,255,0.3); color: var(--accent); }
+.badge-gold { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: var(--gold); }
+
+.method-steps-list {
+  counter-reset: ms; list-style: none;
+}
+.method-steps-list li {
+  counter-increment: ms;
+  display: flex; align-items: flex-start;
+  gap: 12px; padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 12px; color: var(--text2); line-height: 1.6;
+}
+.method-steps-list li:last-child { border: none; }
+.method-steps-list li::before {
+  content: counter(ms);
+  min-width: 24px; height: 24px;
+  background: rgba(124,77,255,0.15);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--accent);
+  font-weight: 700; flex-shrink: 0;
+  margin-top: 1px;
+}
+.mono { font-family: var(--font-mono); color: var(--cyan); }
+
+.example-box {
+  background: rgba(0,0,0,0.3); border-radius: 8px;
+  padding: 12px 16px; margin-top: 12px;
+  font-family: var(--font-mono); font-size: 12px;
+  border-left: 3px solid var(--accent); line-height: 1.8;
+}
+.ex-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+.ex-line { color: var(--text2); }
+.ex-line strong { color: var(--green); }
+
+/* ══════════════ DIVIDER ══════════════ */
+.divider { height:1px; background:var(--border); margin: 20px 0; }
+
+/* ══════════════ SCROLL BAR ══════════════ */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ══════════════ RESPONSIVE ══════════════ */
+@media (max-width: 700px) {
+  .sidebar { width: 60px; }
+  .brand-name, .brand-sub, .nav-section-label, .nav-btn span, .sidebar-footer { display: none; }
+  .nav-btn { justify-content: center; padding: 12px; }
+  .main { padding: 24px 20px; }
+  .formula-grid { grid-template-columns: 1fr; }
+  .inputs-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrapper">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-name">Integral<span>Step</span></div>
+      <div class="brand-sub">v2.0 · Cálculo</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Integrales</div>
+      <button class="nav-btn active" onclick="showPage('simple')" data-tooltip="Integral Simple · Regla de Potencia">
+        <span class="icon">🔢</span><span>Regla de Potencia</span>
+      </button>
+      <button class="nav-btn" onclick="showPage('sust')" data-tooltip="Integral por Sustitución (u-sub)">
+        <span class="icon">🔄</span><span>Por Sustitución</span>
+      </button>
+      <button class="nav-btn" onclick="showPage('partes')" data-tooltip="Integral por Partes · ∫u·dv">
+        <span class="icon">✂️</span><span>Por Partes</span>
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Derivadas</div>
+      <button class="nav-btn" onclick="showPage('deriv')" data-tooltip="Derivada · Regla de Potencia">
+        <span class="icon">📈</span><span>Regla de Potencia</span>
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Referencia</div>
+      <button class="nav-btn" onclick="showPage('formulas')" data-tooltip="Tabla de Fórmulas">
+        <span class="icon">📐</span><span>Tabla de Fórmulas</span>
+      </button>
+      <button class="nav-btn" onclick="showPage('metodos')" data-tooltip="Métodos Paso a Paso">
+        <span class="icon">🧠</span><span>Métodos Paso a Paso</span>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="version-tag">IntegralStep v2.0</div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ████ PAGE: INTEGRAL SIMPLE ████ -->
+    <div class="page active" id="page-simple">
+      <div class="page-header">
+        <div class="page-title">Integral <span class="hl">Simple</span></div>
+        <div class="page-desc">Regla de la potencia · ∫ axⁿ dx = a/(n+1) · xⁿ⁺¹ + C</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Parámetros de la función</div>
+        <div class="formula-strip">
+          <span class="hl2">∫</span> <span class="hl">a</span>x<sup>n</sup> dx
+          &nbsp;=&nbsp;
+          <span class="hl">a</span>/(n+1) · x<sup>n+1</sup> + C
+        </div>
+
+        <div class="inputs-grid inputs-grid-2">
+          <div class="field">
+            <label>Coeficiente <em>a</em></label>
+            <input type="number" id="s-coef" value="1" step="any" placeholder="1" oninput="previewSimple()">
+          </div>
+          <div class="field">
+            <label>Exponente <em>n</em></label>
+            <input type="number" id="s-exp" value="2" step="any" placeholder="2" oninput="previewSimple()">
+          </div>
+        </div>
+
+        <div class="preview live" id="s-preview">
+          <span class="int-sign">∫</span>&nbsp;<span id="s-prev-text">x² dx</span>
+        </div>
+
+        <button class="btn-primary" onclick="calcSimple()">CALCULAR INTEGRAL</button>
+
+        <div class="result-box" id="s-result">
+          <div class="result-label">RESULTADO</div>
+          <div class="result-main" id="s-res-main"></div>
+          <div class="result-sub" id="s-res-sub"></div>
+        </div>
+
+        <div class="steps" id="s-steps"></div>
+        <div class="warning" id="s-warn">⚠&nbsp; Caso especial: cuando n = −1, la integral es <strong>&nbsp;a · ln|x| + C</strong></div>
+        <div class="divider"></div>
+        <button class="btn-secondary" onclick="resetSimple()">↺ &nbsp;LIMPIAR</button>
+      </div>
+    </div>
+
+    <!-- ████ PAGE: SUSTITUCIÓN ████ -->
+    <div class="page" id="page-sust">
+      <div class="page-header">
+        <div class="page-title">Integral por <span class="hl">Sustitución</span></div>
+        <div class="page-desc">Método u-substitution · ∫ f(g(x))·g'(x) dx = ∫ f(u) du</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Define la integral</div>
+        <div class="formula-strip">
+          Forma: <span class="hl">∫ a·(bx + c)<sup>n</sup> dx</span>
+          &nbsp;→&nbsp; u = <span class="hl2">bx + c</span>
+        </div>
+
+        <div class="inputs-grid inputs-grid-3">
+          <div class="field">
+            <label>Coeficiente <em>a</em></label>
+            <input type="number" id="u-a" value="1" step="any" placeholder="1" oninput="previewSust()">
+          </div>
+          <div class="field">
+            <label>Coef. interior <em>b</em></label>
+            <input type="number" id="u-b" value="2" step="any" placeholder="2" oninput="previewSust()">
+          </div>
+          <div class="field">
+            <label>Constante <em>c</em></label>
+            <input type="number" id="u-c" value="0" step="any" placeholder="0" oninput="previewSust()">
+          </div>
+        </div>
+        <div class="inputs-grid inputs-grid-1">
+          <div class="field">
+            <label>Exponente <em>n</em> del paréntesis</label>
+            <input type="number" id="u-n" value="3" step="any" placeholder="3" oninput="previewSust()">
+          </div>
+        </div>
+
+        <div class="preview live" id="u-preview">
+          <span class="int-sign">∫</span>&nbsp;<span id="u-prev-text">(2x)³ dx</span>
+        </div>
+
+        <button class="btn-primary" onclick="calcSust()">CALCULAR POR SUSTITUCIÓN</button>
+
+        <div class="result-box" id="u-result">
+          <div class="result-label">RESULTADO</div>
+          <div class="result-main" id="u-res-main"></div>
+          <div class="result-sub" id="u-res-sub"></div>
+        </div>
+
+        <div class="steps" id="u-steps"></div>
+        <div class="warning" id="u-warn">⚠&nbsp; Caso especial: cuando n = −1, la integral es <strong>&nbsp;(a/b) · ln|bx + c| + C</strong></div>
+        <div class="divider"></div>
+        <button class="btn-secondary" onclick="resetSust()">↺ &nbsp;LIMPIAR</button>
+      </div>
+    </div>
+
+    <!-- ████ PAGE: POR PARTES ████ -->
+    <div class="page" id="page-partes">
+      <div class="page-header">
+        <div class="page-title">Integral por <span class="hl">Partes</span></div>
+        <div class="page-desc">∫ u · dv = u · v − ∫ v · du</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Define u y dv</div>
+        <div class="formula-strip">
+          <span class="hl2">∫ u · dv</span> = u · v − <span class="hl">∫ v · du</span>
+        </div>
+
+        <div class="inputs-grid inputs-grid-2" style="margin-bottom:14px;">
+          <div class="field">
+            <label>Tipo de función</label>
+            <select id="p-type" onchange="updatePartesUI()" style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;cursor:pointer;">
+              <option value="xex">x · eˣ</option>
+              <option value="xlnx">x · ln(x)</option>
+              <option value="xsinx">x · sen(x)</option>
+              <option value="xcosx">x · cos(x)</option>
+              <option value="xnex">xⁿ · eˣ</option>
+            </select>
+          </div>
+          <div class="field" id="p-field-a">
+            <label>Coeficiente <em>a</em></label>
+            <input type="number" id="p-a" value="1" step="any" placeholder="1" oninput="previewPartes()">
+          </div>
+        </div>
+
+        <div class="inputs-grid inputs-grid-2" id="p-extra-fields" style="display:none;">
+          <div class="field">
+            <label>Exponente <em>n</em> de x</label>
+            <input type="number" id="p-n" value="2" step="any" placeholder="2" oninput="previewPartes()">
+          </div>
+        </div>
+
+        <div class="preview live" id="p-preview">
+          <span class="int-sign">∫</span>&nbsp;<span id="p-prev-text">x · eˣ dx</span>
+        </div>
+
+        <button class="btn-primary" onclick="calcPartes()">CALCULAR POR PARTES</button>
+
+        <div class="result-box" id="p-result">
+          <div class="result-label">RESULTADO</div>
+          <div class="result-main" id="p-res-main"></div>
+          <div class="result-sub" id="p-res-sub"></div>
+        </div>
+
+        <div class="steps" id="p-steps"></div>
+        <div class="divider"></div>
+        <button class="btn-secondary" onclick="resetPartes()">↺ &nbsp;LIMPIAR</button>
+      </div>
+    </div>
+
+    <!-- ████ PAGE: DERIVADAS ████ -->
+    <div class="page" id="page-deriv">
+      <div class="page-header">
+        <div class="page-title">Derivada <span class="hl">Regla de Potencia</span></div>
+        <div class="page-desc">d/dx [axⁿ] = a·n·xⁿ⁻¹</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Parámetros</div>
+        <div class="formula-strip">
+          <span class="hl2">d/dx</span> [<span class="hl">a</span>·xⁿ] = <span class="hl">a·n</span>·x<sup>n−1</sup>
+        </div>
+
+        <div class="inputs-grid inputs-grid-2">
+          <div class="field">
+            <label>Coeficiente <em>a</em></label>
+            <input type="number" id="d-coef" value="3" step="any" placeholder="3" oninput="previewDeriv()">
+          </div>
+          <div class="field">
+            <label>Exponente <em>n</em></label>
+            <input type="number" id="d-exp" value="4" step="any" placeholder="4" oninput="previewDeriv()">
+          </div>
+        </div>
+
+        <div class="preview live" id="d-preview">
+          <span id="d-prev-text">d/dx [3x⁴]</span>
+        </div>
+
+        <button class="btn-primary" onclick="calcDeriv()">CALCULAR DERIVADA</button>
+
+        <div class="result-box" id="d-result">
+          <div class="result-label">RESULTADO</div>
+          <div class="result-main" id="d-res-main"></div>
+          <div class="result-sub" id="d-res-sub"></div>
+        </div>
+
+        <div class="steps" id="d-steps"></div>
+        <div class="warning" id="d-warn"></div>
+        <div class="divider"></div>
+        <button class="btn-secondary" onclick="resetDeriv()">↺ &nbsp;LIMPIAR</button>
+      </div>
+    </div>
+
+    <!-- ████ PAGE: FÓRMULAS ████ -->
+    <div class="page" id="page-formulas">
+      <div class="page-header">
+        <div class="page-title">Tabla de <span class="hl">Fórmulas</span></div>
+        <div class="page-desc">Referencia rápida de integrales y derivadas esenciales</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Integrales Fundamentales</div>
+        <div class="formula-grid">
+          <div class="formula-card int">
+            <div class="fc-tag">Potencia</div>
+            <div class="fc-formula">∫ xⁿ dx = xⁿ⁺¹/(n+1) + C</div>
+            <div class="fc-desc">Válido para n ≠ −1. El exponente aumenta en 1 y se divide entre el nuevo exponente.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Logarítmica</div>
+            <div class="fc-formula">∫ 1/x dx = ln|x| + C</div>
+            <div class="fc-desc">Caso especial de n = −1. El resultado es el logaritmo natural del valor absoluto de x.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Exponencial</div>
+            <div class="fc-formula">∫ eˣ dx = eˣ + C</div>
+            <div class="fc-desc">La función exponencial e^x es su propia antiderivada. Propiedad única.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Exponencial general</div>
+            <div class="fc-formula">∫ aˣ dx = aˣ/ln(a) + C</div>
+            <div class="fc-desc">Para cualquier base positiva a ≠ 1. Se divide entre el logaritmo natural de la base.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Seno</div>
+            <div class="fc-formula">∫ sen(x) dx = −cos(x) + C</div>
+            <div class="fc-desc">La integral del seno es el coseno negativo. Recordar el signo negativo.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Coseno</div>
+            <div class="fc-formula">∫ cos(x) dx = sen(x) + C</div>
+            <div class="fc-desc">La integral del coseno es el seno. Sin cambio de signo a diferencia del seno.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Tangente</div>
+            <div class="fc-formula">∫ tan(x) dx = ln|sec(x)| + C</div>
+            <div class="fc-desc">Resultado logarítmico. También puede escribirse como −ln|cos(x)| + C.</div>
+          </div>
+          <div class="formula-card int">
+            <div class="fc-tag">Constante</div>
+            <div class="fc-formula">∫ k dx = kx + C</div>
+            <div class="fc-desc">La integral de una constante es la constante multiplicada por la variable.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Derivadas Fundamentales</div>
+        <div class="formula-grid">
+          <div class="formula-card der">
+            <div class="fc-tag">Potencia</div>
+            <div class="fc-formula">d/dx [xⁿ] = n·xⁿ⁻¹</div>
+            <div class="fc-desc">Baja el exponente como coeficiente y resta 1 al exponente. Regla más usada.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Constante</div>
+            <div class="fc-formula">d/dx [c] = 0</div>
+            <div class="fc-desc">La derivada de cualquier constante es cero. Sin dependencia de x.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Exponencial</div>
+            <div class="fc-formula">d/dx [eˣ] = eˣ</div>
+            <div class="fc-desc">La función eˣ es la única función que es igual a su propia derivada.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Logaritmo</div>
+            <div class="fc-formula">d/dx [ln(x)] = 1/x</div>
+            <div class="fc-desc">El logaritmo natural se convierte en el recíproco de x al derivar.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Seno</div>
+            <div class="fc-formula">d/dx [sen(x)] = cos(x)</div>
+            <div class="fc-desc">La derivada del seno es el coseno. Primer par del ciclo trigonométrico.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Coseno</div>
+            <div class="fc-formula">d/dx [cos(x)] = −sen(x)</div>
+            <div class="fc-desc">La derivada del coseno es el seno negativo. Notar el cambio de signo.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Regla del producto</div>
+            <div class="fc-formula">(f·g)' = f'g + fg'</div>
+            <div class="fc-desc">Para derivar un producto: derivada del primero por el segundo, más el primero por la derivada del segundo.</div>
+          </div>
+          <div class="formula-card der">
+            <div class="fc-tag">Regla de la cadena</div>
+            <div class="fc-formula">d/dx [f(g(x))] = f'(g(x))·g'(x)</div>
+            <div class="fc-desc">Derivar la función exterior evaluada en la interior, multiplicada por la derivada de la interior.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Métodos de Integración</div>
+        <div class="formula-grid">
+          <div class="formula-card method">
+            <div class="fc-tag">Por Sustitución</div>
+            <div class="fc-formula">∫ f(g(x))·g'(x) dx = ∫ f(u) du</div>
+            <div class="fc-desc">Se identifica u = g(x), se calcula du = g'(x)dx y se reemplaza para simplificar la integral.</div>
+          </div>
+          <div class="formula-card method">
+            <div class="fc-tag">Por Partes</div>
+            <div class="fc-formula">∫ u·dv = uv − ∫ v·du</div>
+            <div class="fc-desc">Útil para productos de funciones. Usar regla LIATE para elegir u: Logarítmica, Inversa trig, Algebraica, Trig, Exponencial.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ████ PAGE: MÉTODOS ████ -->
+    <div class="page" id="page-metodos">
+      <div class="page-header">
+        <div class="page-title">Métodos <span class="hl">Paso a Paso</span></div>
+        <div class="page-desc">Guía completa para dominar cada técnica de integración y derivación</div>
+      </div>
+
+      <!-- DERIVADA POTENCIA -->
+      <div class="method-card">
+        <div class="method-title">
+          Derivada: Regla de la Potencia
+          <span class="method-badge badge-cyan">Derivada</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7;">
+          La regla más fundamental del cálculo diferencial. Permite derivar cualquier monomio de la forma axⁿ.
+        </p>
+        <ul class="method-steps-list">
+          <li>Identifica el <strong>coeficiente a</strong> y el <strong>exponente n</strong> en la expresión axⁿ.</li>
+          <li>Multiplica el coeficiente por el exponente: <span class="mono">nuevo coef = a × n</span></li>
+          <li>Resta 1 al exponente: <span class="mono">nuevo exp = n − 1</span></li>
+          <li>Escribe el resultado: <span class="mono">(a·n)·x^(n−1)</span></li>
+          <li>Si n = 0 (constante), la derivada es 0. Si n = 1, la derivada es simplemente a.</li>
+        </ul>
+        <div class="example-box">
+          <div class="ex-label">Ejemplo: d/dx [5x³]</div>
+          <div class="ex-line">① Coeficiente = 5, Exponente = 3</div>
+          <div class="ex-line">② Nuevo coef = 5 × 3 = <strong>15</strong></div>
+          <div class="ex-line">③ Nuevo exp = 3 − 1 = <strong>2</strong></div>
+          <div class="ex-line">④ Resultado: <strong>15x²</strong></div>
+        </div>
+      </div>
+
+      <!-- INTEGRAL POTENCIA -->
+      <div class="method-card">
+        <div class="method-title">
+          Integral: Regla de la Potencia
+          <span class="method-badge badge-purple">Integral Simple</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7;">
+          Operación inversa a la derivada. Aplica cuando la función es un monomio axⁿ con n ≠ −1.
+        </p>
+        <ul class="method-steps-list">
+          <li>Identifica el coeficiente <strong>a</strong> y el exponente <strong>n</strong> en axⁿ.</li>
+          <li>Verifica que n ≠ −1. Si n = −1, la integral es <span class="mono">a·ln|x| + C</span>.</li>
+          <li>Suma 1 al exponente: <span class="mono">nuevo exp = n + 1</span></li>
+          <li>Divide el coeficiente entre el nuevo exponente: <span class="mono">nuevo coef = a / (n+1)</span></li>
+          <li>Escribe el resultado y agrega la constante de integración <strong>+C</strong>.</li>
+        </ul>
+        <div class="example-box">
+          <div class="ex-label">Ejemplo: ∫ 4x² dx</div>
+          <div class="ex-line">① Coeficiente = 4, Exponente = 2</div>
+          <div class="ex-line">② n ≠ −1 ✓</div>
+          <div class="ex-line">③ Nuevo exp = 2 + 1 = <strong>3</strong></div>
+          <div class="ex-line">④ Nuevo coef = 4 / 3 = <strong>4/3</strong></div>
+          <div class="ex-line">⑤ Resultado: <strong>(4/3)x³ + C</strong></div>
+        </div>
+      </div>
+
+      <!-- SUSTITUCIÓN -->
+      <div class="method-card">
+        <div class="method-title">
+          Integral por Sustitución (u-sub)
+          <span class="method-badge badge-green">Sustitución</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7;">
+          Técnica que simplifica integrales reconociendo una función compuesta. Es la versión integral de la regla de la cadena.
+        </p>
+        <ul class="method-steps-list">
+          <li>Identifica la función "interior" g(x) que complica la integral. Llámala <span class="mono">u = g(x)</span>.</li>
+          <li>Calcula la diferencial: <span class="mono">du = g'(x) dx</span>, despeja dx.</li>
+          <li>Sustituye g(x) por <strong>u</strong> y dx por la expresión en du en la integral original.</li>
+          <li>Resuelve la integral simplificada en términos de u.</li>
+          <li>Sustituye de regreso: reemplaza u por g(x) en el resultado.</li>
+          <li>Añade la constante de integración <strong>+C</strong>.</li>
+        </ul>
+        <div class="example-box">
+          <div class="ex-label">Ejemplo: ∫ 6x(3x² + 1)² dx</div>
+          <div class="ex-line">① u = 3x² + 1</div>
+          <div class="ex-line">② du = 6x dx → dx = du/(6x)</div>
+          <div class="ex-line">③ Integral → ∫ u² du</div>
+          <div class="ex-line">④ = u³/3 + C</div>
+          <div class="ex-line">⑤ Resultado: <strong>(3x² + 1)³ / 3 + C</strong></div>
+        </div>
+      </div>
+
+      <!-- POR PARTES -->
+      <div class="method-card">
+        <div class="method-title">
+          Integral por Partes
+          <span class="method-badge badge-gold">Por Partes</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7;">
+          Técnica para integrar productos de funciones. Se basa en la regla del producto para derivadas. Fórmula: <strong>∫ u·dv = uv − ∫ v·du</strong>
+        </p>
+        <ul class="method-steps-list">
+          <li>Usa la regla <strong>LIATE</strong> para elegir u: Logarítmica → Inversa trig → Algebraica → Trigonométrica → Exponencial. La primera que aparezca en la lista será u.</li>
+          <li>Asigna el resto de la expresión como <strong>dv</strong>.</li>
+          <li>Calcula <span class="mono">du</span> derivando u, y calcula <span class="mono">v</span> integrando dv.</li>
+          <li>Aplica la fórmula: <span class="mono">∫ u·dv = u·v − ∫ v·du</span></li>
+          <li>Evalúa la nueva integral <span class="mono">∫ v·du</span>. Si aún es complicada, aplica por partes de nuevo.</li>
+          <li>Simplifica y añade <strong>+C</strong>.</li>
+        </ul>
+        <div class="example-box">
+          <div class="ex-label">Ejemplo: ∫ x·eˣ dx</div>
+          <div class="ex-line">① LIATE: x es Algebraica, eˣ es Exponencial → u = x</div>
+          <div class="ex-line">② dv = eˣ dx</div>
+          <div class="ex-line">③ du = dx &nbsp;|&nbsp; v = eˣ</div>
+          <div class="ex-line">④ = x·eˣ − ∫ eˣ dx</div>
+          <div class="ex-line">⑤ Resultado: <strong>x·eˣ − eˣ + C = eˣ(x−1) + C</strong></div>
+        </div>
+      </div>
+
+    </div>
+    <!-- END PAGES -->
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════
+const sup = n => {
+  const m = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  return String(n).split('').map(c=>m[c]||c).join('');
+};
+
+const fmtCoef = (a, b) => {
+  const v = a/b;
+  const r = Math.round(v*10000)/10000;
+  if(Number.isInteger(r)) return r===1?'':(r===-1?'-':String(r));
+  for(let d=2;d<=100;d++){
+    const num=Math.round(a*d/b);
+    if(Math.abs(num/d-v)<0.00001){
+      if(num===d) return '';
+      if(num===-d) return '-';
+      return `${num}/${d}`;
+    }
+  }
+  return (Math.round(v*1000)/1000).toString();
+};
+
+const buildStep = (num, text) =>
+  `<div class="step"><div class="step-num">${num}</div><div class="step-text">${text}</div></div>`;
+
+const sv = val => `<span class="step-val">${val}</span>`;
+
+function showResult(id, type, main, sub) {
+  const el = document.getElementById(id);
+  el.className = `result-box show ${type}`;
+  el.querySelector('.result-main').textContent = main;
+  el.querySelector('.result-sub').textContent = sub;
+}
+
+function showSteps(id, html) {
+  const el = document.getElementById(id);
+  el.innerHTML = html; el.className = 'steps show';
+}
+
+function resetBox(...ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(el.classList.contains('result-box')) el.className = 'result-box';
+    else if(el.classList.contains('steps')) el.className = 'steps';
+    else if(el.classList.contains('warning')) el.className = 'warning';
+  });
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// INTEGRAL SIMPLE
+// ═══════════════════════════════════════════
+function previewSimple() {
+  const a = parseFloat(document.getElementById('s-coef').value)||1;
+  const n = parseFloat(document.getElementById('s-exp').value);
+  if(isNaN(n)){ document.getElementById('s-prev-text').textContent='...'; return; }
+  let expr='';
+  if(a!==1&&a!==-1) expr+=a; else if(a===-1) expr+='-';
+  expr+='x';
+  if(n!==1) expr+=sup(n);
+  expr+=' dx';
+  document.getElementById('s-prev-text').textContent=expr;
+}
+
+function calcSimple() {
+  const a=parseFloat(document.getElementById('s-coef').value);
+  const n=parseFloat(document.getElementById('s-exp').value);
+  resetBox('s-result','s-steps','s-warn');
+  if(isNaN(a)||isNaN(n)){ showResult('s-result','err','Valores inválidos','Ingresa números válidos'); return; }
+  if(n===-1){
+    document.getElementById('s-warn').className='warning show';
+    const res = a!==1?`${a}·ln|x| + C`:'ln|x| + C';
+    showResult('s-result','warn',res,'Caso especial: n = −1 → resultado logarítmico');
+    return;
+  }
+  const ne=n+1, nc=a/ne;
+  const cf=fmtCoef(a,ne);
+  let res=cf+(ne!==1?`x${sup(ne)}`:'x')+' + C';
+  showResult('s-result','ok',res,`integral de ${a}x${sup(n)}`);
+  showSteps('s-steps',
+    buildStep(1,`Nuevo exponente: n + 1 = ${n} + 1 = ${sv(ne)}`) +
+    buildStep(2,`Nuevo coeficiente: ${a} ÷ ${ne} = ${sv(Math.round(nc*10000)/10000)}`) +
+    buildStep(3,`Resultado final: ${sv(res)}`)
+  );
+}
+
+function resetSimple() {
+  document.getElementById('s-coef').value=1;
+  document.getElementById('s-exp').value=2;
+  resetBox('s-result','s-steps','s-warn');
+  previewSimple();
+}
+
+// ═══════════════════════════════════════════
+// SUSTITUCIÓN
+// ═══════════════════════════════════════════
+function previewSust() {
+  const a=parseFloat(document.getElementById('u-a').value)||1;
+  const b=parseFloat(document.getElementById('u-b').value)||1;
+  const c=parseFloat(document.getElementById('u-c').value)||0;
+  const n=parseFloat(document.getElementById('u-n').value);
+  if(isNaN(n)){ document.getElementById('u-prev-text').textContent='...'; return; }
+  let inner = b!==1?`${b}x`:'x';
+  if(c>0) inner+=`+${c}`; else if(c<0) inner+=`${c}`;
+  let expr='';
+  if(a!==1&&a!==-1) expr+=a; else if(a===-1) expr+='-';
+  expr+=`(${inner})`;
+  if(n!==1) expr+=sup(n);
+  expr+=' dx';
+  document.getElementById('u-prev-text').textContent=expr;
+}
+
+function calcSust() {
+  const a=parseFloat(document.getElementById('u-a').value);
+  const b=parseFloat(document.getElementById('u-b').value);
+  const c=parseFloat(document.getElementById('u-c').value);
+  const n=parseFloat(document.getElementById('u-n').value);
+  resetBox('u-result','u-steps','u-warn');
+  if([a,b,c,n].some(isNaN)){ showResult('u-result','err','Valores inválidos','Ingresa números válidos'); return; }
+
+  let inner = b!==1?`${b}x`:'x';
+  if(c>0) inner+=`+${c}`; else if(c<0) inner+=`${c}`;
+
+  if(n===-1){
+    document.getElementById('u-warn').className='warning show';
+    const coefLog = fmtCoef(a,b)||'1';
+    const res = `(${coefLog})·ln|${inner}| + C`;
+    showResult('u-result','warn',res,'Caso especial: n = −1 → resultado logarítmico');
+    showSteps('u-steps',
+      buildStep(1,`Sea u = ${inner}, entonces du = ${sv(b)} dx`) +
+      buildStep(2,`dx = du/${b}`) +
+      buildStep(3,`La integral se convierte en: (${a}/${b}) ∫ (1/u) du`) +
+      buildStep(4,`= (${a}/${b}) · ln|u| + C`) +
+      buildStep(5,`Sustituir de regreso: ${sv(res)}`)
+    );
+    return;
+  }
+
+  const ne=n+1;
+  const totalCoef = a/b/ne;
+  const cf = (() => {
+    const v=totalCoef, r=Math.round(v*10000)/10000;
+    if(Number.isInteger(r)) return r===1?'':(r===-1?'-':String(r));
+    for(let d=2;d<=200;d++){
+      const num=Math.round(a*d/(b*ne));
+      if(Math.abs(num/d-v)<0.00001){
+        if(num===d) return ''; if(num===-d) return '-';
+        return `${num}/${d}`;
+      }
+    }
+    return (Math.round(v*1000)/1000).toString();
+  })();
+
+  let res = cf+(ne!==1?`(${inner})${sup(ne)}`:`(${inner})`)+' + C';
+  showResult('u-result','ok',res,`∫ ${a!==1?a:''}(${inner})${n!==1?sup(n):''} dx`);
+  showSteps('u-steps',
+    buildStep(1,`Identificar la función interior: u = ${sv(inner)}`) +
+    buildStep(2,`Calcular du: du = ${sv(b)} dx &nbsp;→&nbsp; dx = ${sv(`du/${b}`)}`) +
+    buildStep(3,`Sustituir: ∫ ${a!==1?a:''} · u${sup(n)} · (du/${b}) = ${sv(`(${a}/${b})`)} ∫ u${sup(n)} du`) +
+    buildStep(4,`Aplicar regla de potencia: ${sv(`(${a}/${b}) · u${sup(ne)}/${ne}`)}`) +
+    buildStep(5,`Coeficiente final: ${a}/(${b}·${ne}) = ${sv(Math.round(totalCoef*10000)/10000)}`) +
+    buildStep(6,`Sustituir u = ${inner}: ${sv(res)}`)
+  );
+}
+
+function resetSust() {
+  document.getElementById('u-a').value=1;
+  document.getElementById('u-b').value=2;
+  document.getElementById('u-c').value=0;
+  document.getElementById('u-n').value=3;
+  resetBox('u-result','u-steps','u-warn');
+  previewSust();
+}
+
+// ═══════════════════════════════════════════
+// POR PARTES
+// ═══════════════════════════════════════════
+function updatePartesUI() {
+  const t=document.getElementById('p-type').value;
+  document.getElementById('p-extra-fields').style.display = t==='xnex'?'grid':'none';
+  previewPartes();
+}
+
+function previewPartes() {
+  const t=document.getElementById('p-type').value;
+  const a=parseFloat(document.getElementById('p-a').value)||1;
+  const n=parseFloat(document.getElementById('p-n').value)||2;
+  const pv={'xex':'x · eˣ','xlnx':'x · ln(x)','xsinx':'x · sen(x)','xcosx':'x · cos(x)','xnex':`x${sup(n)} · eˣ`};
+  let txt = a!==1?`${a}·`:'';
+  txt += pv[t]||'...';
+  txt += ' dx';
+  document.getElementById('p-prev-text').textContent=txt;
+}
+
+function calcPartes() {
+  const t=document.getElementById('p-type').value;
+  const a=parseFloat(document.getElementById('p-a').value)||1;
+  const n=parseFloat(document.getElementById('p-n').value)||2;
+  resetBox('p-result','p-steps');
+
+  let res='', steps='', sub='';
+
+  if(t==='xex') {
+    res = a===1?'eˣ(x − 1) + C':`${a}·eˣ(x − 1) + C`;
+    sub = '∫ x·eˣ dx';
+    steps =
+      buildStep(1,'Identificar según LIATE: u = x (algebraica), dv = eˣ dx (exponencial)') +
+      buildStep(2,`Calcular: du = dx &nbsp;|&nbsp; v = eˣ`) +
+      buildStep(3,`Aplicar fórmula: ∫ u·dv = u·v − ∫ v·du`) +
+      buildStep(4,`= x·eˣ − ∫ eˣ dx`) +
+      buildStep(5,`= x·eˣ − eˣ + C`) +
+      buildStep(6,`Factorizar: ${sv(res)}`);
+  }
+  else if(t==='xlnx') {
+    res = a===1?'(x²/2)·ln(x) − x²/4 + C':`${a}[(x²/2)·ln(x) − x²/4] + C`;
+    sub = '∫ x·ln(x) dx';
+    steps =
+      buildStep(1,'Identificar según LIATE: u = ln(x) (logarítmica), dv = x dx (algebraica)') +
+      buildStep(2,'Calcular: du = (1/x) dx &nbsp;|&nbsp; v = x²/2') +
+      buildStep(3,'Aplicar fórmula: ∫ u·dv = u·v − ∫ v·du') +
+      buildStep(4,'= (x²/2)·ln(x) − ∫ (x²/2)·(1/x) dx') +
+      buildStep(5,'= (x²/2)·ln(x) − ∫ (x/2) dx') +
+      buildStep(6,'= (x²/2)·ln(x) − x²/4 + C') +
+      buildStep(7,`Con coeficiente ${a}: ${sv(res)}`);
+  }
+  else if(t==='xsinx') {
+    res = a===1?'−x·cos(x) + sen(x) + C':`${a}[−x·cos(x) + sen(x)] + C`;
+    sub = '∫ x·sen(x) dx';
+    steps =
+      buildStep(1,'Identificar según LIATE: u = x (algebraica), dv = sen(x) dx (trigonométrica)') +
+      buildStep(2,'Calcular: du = dx &nbsp;|&nbsp; v = −cos(x)') +
+      buildStep(3,'Aplicar fórmula: = x·(−cos x) − ∫ (−cos x) dx') +
+      buildStep(4,'= −x·cos(x) + ∫ cos(x) dx') +
+      buildStep(5,'= −x·cos(x) + sen(x) + C') +
+      buildStep(6,`Con coeficiente ${a}: ${sv(res)}`);
+  }
+  else if(t==='xcosx') {
+    res = a===1?'x·sen(x) + cos(x) + C':`${a}[x·sen(x) + cos(x)] + C`;
+    sub = '∫ x·cos(x) dx';
+    steps =
+      buildStep(1,'Identificar según LIATE: u = x (algebraica), dv = cos(x) dx (trigonométrica)') +
+      buildStep(2,'Calcular: du = dx &nbsp;|&nbsp; v = sen(x)') +
+      buildStep(3,'Aplicar fórmula: = x·sen(x) − ∫ sen(x) dx') +
+      buildStep(4,'= x·sen(x) − (−cos x) + C') +
+      buildStep(5,`= x·sen(x) + cos(x) + C`) +
+      buildStep(6,`Con coeficiente ${a}: ${sv(res)}`);
+  }
+  else if(t==='xnex') {
+    // xⁿeˣ: general result shown symbolically
+    res = n===2?`${a!==1?a+'·':''}eˣ(x² − 2x + 2) + C`:`${a!==1?a+'·':''}[Por partes repetida para x${sup(n)}·eˣ] + C`;
+    sub = `∫ x${sup(n)}·eˣ dx`;
+    const n2=n-1, n3=n-2;
+    steps =
+      buildStep(1,`Identificar: u = x${sup(n)} (algebraica), dv = eˣ dx (exponencial)`) +
+      buildStep(2,`du = ${n}x${n!==2?sup(n2):''} dx &nbsp;|&nbsp; v = eˣ`) +
+      buildStep(3,`= x${sup(n)}·eˣ − ${n}∫ x${sup(n2)}·eˣ dx`) +
+      buildStep(4,`Aplicar por partes nuevamente a ∫ x${sup(n2)}·eˣ dx${n===2?':':' (repetir proceso)'}`) +
+      (n===2 ? buildStep(5,`∫ x·eˣ dx = eˣ(x−1)  (caso base)`) : '') +
+      (n===2 ? buildStep(6,`= x²·eˣ − 2·eˣ(x−1) = ${sv(res)}`) : buildStep(5,sv(res)));
+  }
+
+  showResult('p-result','ok',res,sub);
+  if(steps) showSteps('p-steps',steps);
+}
+
+function resetPartes() {
+  document.getElementById('p-a').value=1;
+  document.getElementById('p-n').value=2;
+  document.getElementById('p-type').value='xex';
+  updatePartesUI();
+  resetBox('p-result','p-steps');
+}
+
+// ═══════════════════════════════════════════
+// DERIVADAS
+// ═══════════════════════════════════════════
+function previewDeriv() {
+  const a=parseFloat(document.getElementById('d-coef').value)||1;
+  const n=parseFloat(document.getElementById('d-exp').value);
+  if(isNaN(n)){ document.getElementById('d-prev-text').textContent='...'; return; }
+  let expr='d/dx [';
+  if(a!==1&&a!==-1) expr+=a; else if(a===-1) expr+='-';
+  expr+='x';
+  if(n!==1) expr+=sup(n);
+  expr+=']';
+  document.getElementById('d-prev-text').textContent=expr;
+}
+
+function calcDeriv() {
+  const a=parseFloat(document.getElementById('d-coef').value);
+  const n=parseFloat(document.getElementById('d-exp').value);
+  resetBox('d-result','d-steps','d-warn');
+  if(isNaN(a)||isNaN(n)){ showResult('d-result','err','Valores inválidos','Ingresa números válidos'); return; }
+
+  if(n===0){
+    showResult('d-result','warn','0','La derivada de una constante es siempre 0');
+    showSteps('d-steps', buildStep(1,`La función es una constante (n=0) → derivada = ${sv(0)}`));
+    return;
+  }
+
+  const newCoef=a*n, newExp=n-1;
+  let res='';
+  if(newExp===0) res = String(newCoef);
+  else {
+    if(newCoef!==1&&newCoef!==-1) res+=newCoef; else if(newCoef===-1) res+='-';
+    res+='x';
+    if(newExp!==1) res+=sup(newExp);
+  }
+
+  showResult('d-result','ok',res,`d/dx [${a!==1?a:''}x${n!==1?sup(n):''}]`);
+  showSteps('d-steps',
+    buildStep(1,`Bajar el exponente como coeficiente: ${a} × ${n} = ${sv(newCoef)}`) +
+    buildStep(2,`Restar 1 al exponente: ${n} − 1 = ${sv(newExp)}`) +
+    buildStep(3,`Resultado: ${sv(res)}`)
+  );
+}
+
+function resetDeriv() {
+  document.getElementById('d-coef').value=3;
+  document.getElementById('d-exp').value=4;
+  resetBox('d-result','d-steps','d-warn');
+  previewDeriv();
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+previewSimple();
+previewSust();
+previewPartes();
+previewDeriv();
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    const active=document.querySelector('.page.active').id;
+    const map={'page-simple':calcSimple,'page-sust':calcSust,'page-partes':calcPartes,'page-deriv':calcDeriv};
+    if(map[active]) map[active]();
+  }
+});
+</script>
+</body>
+</html>
