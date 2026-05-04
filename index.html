@@ -392,6 +392,9 @@ select option { background: var(--surface2); }
     <button class="nav-btn" onclick="showPage('grafica',this)" data-tooltip="Graficar integrales">
       <span class="icon">✏️</span><span>Graficar Integral</span>
     </button>
+    <button class="nav-btn" onclick="showPage('grafcas',this)" data-tooltip="Graficar Cascarones Cilíndricos">
+      <span class="icon">✏️</span><span>Graficar Cascarón</span>
+    </button>
   </div>
 
   <div class="nav-section">
@@ -734,6 +737,44 @@ select option { background: var(--surface2); }
     <div class="result-box" id="gr-result"><div class="result-label">ÁREA BAJO LA CURVA</div><div class="result-main" id="gr-res-main"></div><div class="result-sub" id="gr-res-sub"></div></div>
     <div class="divider"></div>
     <button class="btn-secondary" onclick="resetGrafica()">↺ &nbsp;LIMPIAR</button>
+  </div>
+</div>
+
+<!-- ████ GRAFICAR CASCARONES ████ -->
+<div class="page" id="page-grafcas">
+  <div class="page-header">
+    <div class="page-title">Graficar <span class="hl">Cascarón Cilíndrico</span></div>
+    <div class="page-desc">Visualiza el sólido de revolución generado por V = 2π ∫ₐᵇ x·f(x) dx — vista 3D isométrica del cascarón</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Función f(x) = cxⁿ + d</div>
+    <div class="formula-strip"><span class="hl">V</span> = <span class="hl2">2π</span> <span class="hl2">∫</span><sub class="hl">a</sub><sup class="hl">b</sup> x·(cx<sup>n</sup> + d) dx</div>
+    <div class="inputs-grid inputs-grid-3">
+      <div class="field"><label>Coef. <em>c</em></label><input type="number" id="gc-c" value="1" step="any"></div>
+      <div class="field"><label>Exponente <em>n</em></label><input type="number" id="gc-n" value="2" step="any"></div>
+      <div class="field"><label>Constante <em>d</em></label><input type="number" id="gc-d" value="0" step="any"></div>
+    </div>
+    <div class="inputs-grid inputs-grid-2">
+      <div class="field"><label>Límite inferior <em>a</em></label><input type="number" id="gc-lo" value="0" step="any"></div>
+      <div class="field"><label>Límite superior <em>b</em></label><input type="number" id="gc-hi" value="2" step="any"></div>
+    </div>
+    <div class="graph-legend">
+      <span><span class="legend-dot" style="background:#00e5ff;"></span> f(x) — perfil de la función</span>
+      <span><span class="legend-dot" style="background:rgba(124,77,255,0.6);border:1px solid #7c4dff;"></span> Cascarón sombreado (entre a y b)</span>
+      <span><span class="legend-dot" style="background:rgba(0,255,170,0.5);border:1px solid #00ffaa;"></span> Superficie exterior del sólido</span>
+    </div>
+    <div class="graph-canvas-wrap">
+      <canvas id="gc-canvas" height="380"></canvas>
+    </div>
+    <button class="btn-primary" onclick="graficarCascaron()">GRAFICAR CASCARÓN</button>
+    <div class="result-box" id="gc-result">
+      <div class="result-label">VOLUMEN DEL CASCARÓN</div>
+      <div class="result-main" id="gc-res-main"></div>
+      <div class="result-sub" id="gc-res-sub"></div>
+    </div>
+    <div class="steps" id="gc-steps"></div>
+    <div class="divider"></div>
+    <button class="btn-secondary" onclick="resetGrafCascaron()">↺ &nbsp;LIMPIAR</button>
   </div>
 </div>
 
@@ -1368,8 +1409,249 @@ function resetGrafica() {
 }
 
 // ══════════════════════════════════════════
-// GENERIC RESET
+// GRAFICAR CASCARÓN CILÍNDRICO
 // ══════════════════════════════════════════
+function graficarCascaron() {
+  const c  = parseFloat(document.getElementById('gc-c').value);
+  const n  = parseFloat(document.getElementById('gc-n').value);
+  const d  = parseFloat(document.getElementById('gc-d').value);
+  const lo = parseFloat(document.getElementById('gc-lo').value);
+  const hi = parseFloat(document.getElementById('gc-hi').value);
+
+  if ([c,n,d,lo,hi].some(isNaN)) return showResult('gc','err','Ingresa todos los valores','');
+  if (lo < 0) return showResult('gc','err','El límite inferior debe ser ≥ 0','El cascarón requiere x ≥ 0');
+  if (hi <= lo) return showResult('gc','err','b debe ser mayor que a','');
+  if (n === -1) return showResult('gc','err','n = −1 no soportado en la gráfica','');
+
+  // ── Calcular volumen ──
+  const np2 = n + 2;
+  const antideriv = x => (c / np2) * Math.pow(x, np2) + (d / 2) * x * x;
+  const inner = antideriv(hi) - antideriv(lo);
+  const vol   = 2 * Math.PI * inner;
+  const f     = x => c * Math.pow(x, n) + d;
+
+  showResult('gc', 'ok', fmt(vol) + ' u³', '≈ ' + fmt(vol / Math.PI) + '·π u³');
+  showSteps('gc',
+    step(1, 'f(x) = ' + sv(fmt(c) + '·x' + sup(n) + (d >= 0 ? ' + ' : ' ') + fmt(d))) +
+    step(2, 'Expande: x·f(x) = ' + sv(fmt(c) + '·x' + sup(n+1) + ' + ' + fmt(d) + '·x')) +
+    step(3, 'Antiderivada: F(x) = ' + sv(fmt(c/np2) + '·x' + sup(np2) + ' + ' + fmt(d/2) + '·x²')) +
+    step(4, 'F(' + fmt(hi) + ') − F(' + fmt(lo) + ') = ' + sv(fmt(inner))) +
+    step(5, 'V = 2π · ' + sv(fmt(inner)) + ' = ' + sv(fmt(vol) + ' u³'))
+  );
+
+  // ── Canvas setup ──
+  const canvas = document.getElementById('gc-canvas');
+  const W = canvas.offsetWidth || 700;
+  const H = 380;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // background
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Proyección isométrica oblicua ──
+  // Eje X horizontal, eje Y vertical, eje Z oblicuo (profundidad)
+  const cx = W * 0.42;
+  const cy = H * 0.52;
+  const scaleX = (W * 0.28) / Math.max(hi, 1);   // radio → píxeles horizontales
+  const scaleY = (H * 0.38) / Math.max(Math.abs(f(hi)), Math.abs(f(lo)), 1); // altura
+  const skewX  = 0.45;  // factor oblicuidad eje Z
+  const skewY  = 0.22;
+
+  // Convierte (radio r, altura y, ángulo theta) → pixel (px, py)
+  // Vista: eje horizontal = x (radio), eje vertical = y, profundidad = z projection
+  const proj = (r, y, theta) => {
+    const zx =  Math.cos(theta) * r * scaleX * skewX;
+    const zy = -Math.sin(theta) * r * scaleX * skewY;
+    return {
+      px: cx + r * scaleX + zx,
+      py: cy - y * scaleY + zy
+    };
+  };
+
+  const STEPS   = 120;   // segmentos angulares
+  const SLICES  = 80;    // segmentos radiales
+
+  // ── Rejilla de fondo ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 6; i++) {
+    const yg = cy - (H * 0.38) + (H * 0.76) * i / 6;
+    ctx.beginPath(); ctx.moveTo(W * 0.05, yg); ctx.lineTo(W * 0.95, yg); ctx.stroke();
+  }
+  for (let i = 0; i <= 8; i++) {
+    const xg = W * 0.05 + W * 0.9 * i / 8;
+    ctx.beginPath(); ctx.moveTo(xg, H * 0.05); ctx.lineTo(xg, H * 0.95); ctx.stroke();
+  }
+
+  // ── Ejes de referencia ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1.5;
+  // eje X (radio)
+  ctx.beginPath(); ctx.moveTo(cx - 18, cy); ctx.lineTo(cx + hi * scaleX * 1.18, cy); ctx.stroke();
+  // eje Y (altura)
+  const topY = cy - Math.max(...Array.from({length:50}, (_,i) => Math.abs(f(lo + (hi-lo)*i/49)))) * scaleY * 1.3;
+  ctx.beginPath(); ctx.moveTo(cx, cy + 30); ctx.lineTo(cx, Math.max(topY, 20)); ctx.stroke();
+  // etiquetas ejes
+  ctx.fillStyle = 'rgba(160,160,200,0.7)';
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('x (radio)', cx + hi * scaleX * 1.1, cy + 20);
+  ctx.textAlign = 'right';
+  ctx.fillText('f(x)', cx - 8, Math.max(topY, 25));
+
+  // ── Función para dibujar una "franja" cilíndrica (anillo) ──
+  const drawRing = (r, yTop, yBot, fillStyle, strokeStyle, lineW, alpha) => {
+    // Vista frontal: elipse aplastada para simular perspectiva
+    const rx = r * scaleX;
+    const ry = rx * 0.22; // aplanamiento vertical para perspectiva
+
+    ctx.globalAlpha = alpha;
+
+    // Cara trasera del anillo (arco superior detrás)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - yTop * scaleY, rx, ry, 0, Math.PI, 0);
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineW;
+    ctx.setLineDash([3, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Cara lateral del cilindro
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - yTop * scaleY, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineW;
+    ctx.stroke();
+
+    // Líneas laterales (izquierda y derecha)
+    ctx.beginPath();
+    ctx.moveTo(cx - rx, cy - yTop * scaleY);
+    ctx.lineTo(cx - rx, cy - yBot * scaleY);
+    ctx.moveTo(cx + rx, cy - yTop * scaleY);
+    ctx.lineTo(cx + rx, cy - yBot * scaleY);
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineW;
+    ctx.stroke();
+
+    // Elipse inferior
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - yBot * scaleY, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineW;
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+  };
+
+  // ── 1. Dibujar superficie del sólido completo (de 0 a hi) ──
+  const xVals = Array.from({length: SLICES + 1}, (_, i) => hi * i / SLICES);
+  // Ordenar de atrás hacia adelante para pintura correcta (radio mayor primero)
+  for (let i = SLICES; i >= 0; i--) {
+    const r = xVals[i];
+    const yTop = Math.max(f(r), 0);
+    const yBot = 0;
+    if (yTop <= 0) continue;
+    drawRing(r, yTop, yBot,
+      'rgba(0,255,170,0.04)',
+      'rgba(0,255,170,0.18)',
+      0.6, 1
+    );
+  }
+
+  // ── 2. Dibujar cascarón (entre lo y hi) con relleno más visible ──
+  const shelXVals = Array.from({length: SLICES + 1}, (_, i) => lo + (hi - lo) * i / SLICES);
+  for (let i = SLICES; i >= 0; i--) {
+    const r = shelXVals[i];
+    const yTop = Math.max(f(r), 0);
+    if (yTop <= 0) continue;
+    const t = i / SLICES; // 0=hi lado, 1=lo lado
+    const alpha = 0.18 + 0.12 * (1 - t);
+    drawRing(r, yTop, 0,
+      `rgba(124,77,255,${alpha})`,
+      'rgba(124,77,255,0.55)',
+      1, 1
+    );
+  }
+
+  // ── 3. Curva f(x) sobre el perfil (vista lateral) ──
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2.5;
+  const profileXs = Array.from({length: 200}, (_, i) => hi * 1.05 * i / 199);
+  profileXs.forEach((r, i) => {
+    const yf = f(r);
+    const px = cx + r * scaleX;
+    const py = cy - yf * scaleY;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  // ── 4. Líneas de límites a y b ──
+  const drawLimit = (r, label, color) => {
+    const yf = Math.max(f(r), 0);
+    const px = cx + r * scaleX;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(px, cy + 22); ctx.lineTo(px, cy - yf * scaleY - 10); ctx.stroke();
+    ctx.setLineDash([]);
+    // tick en eje X
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label + '=' + fmt(r), px, cy + 35);
+  };
+  if (lo > 0) drawLimit(lo, 'a', 'rgba(0,229,255,0.85)');
+  drawLimit(hi, 'b', 'rgba(0,229,255,0.85)');
+
+  // ── 5. Línea del eje de rotación (y) ──
+  ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(cx, cy + 28); ctx.lineTo(cx, Math.max(topY - 10, 15)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,215,0,0.8)';
+  ctx.font = 'bold 11px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('eje y', cx + 6, Math.max(topY, 20));
+
+  // ── 6. Etiqueta de volumen en la gráfica ──
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(W - 210, 12, 196, 46);
+  ctx.strokeStyle = 'rgba(124,77,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(W - 210, 12, 196, 46);
+  ctx.fillStyle = '#a0a0c8';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('V = 2π ∫f(x)·x dx', W - 200, 30);
+  ctx.fillStyle = '#00ffaa';
+  ctx.font = 'bold 13px JetBrains Mono, monospace';
+  ctx.fillText(fmt(vol) + ' u³', W - 200, 50);
+}
+
+function resetGrafCascaron() {
+  document.getElementById('gc-c').value  = 1;
+  document.getElementById('gc-n').value  = 2;
+  document.getElementById('gc-d').value  = 0;
+  document.getElementById('gc-lo').value = 0;
+  document.getElementById('gc-hi').value = 2;
+  clearAll('gc');
+  const canvas = document.getElementById('gc-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+
 function resetPage(prefix) { clearAll(prefix); }
 </script>
 </body>
